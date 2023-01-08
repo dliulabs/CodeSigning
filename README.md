@@ -97,7 +97,7 @@ az keyvault set-policy -n ${AKV_NAME} --secret-permissions get list --spn ${CLIE
 
 3. Save the Principal credentials to GitHub Actions as a repository secret: `secrets.AZURE_CREDENTIALS`
 
-some fields are repeated as I am not sure which fields are use by the GitHub Actions `Azure/login@v1`, the documentation has been lacking on this:
+Some fields are repeated as I am not sure which fields are used by the GitHub Actions `Azure/login@v1`, the documentation has been lacking on this:
 
 ```
 {
