@@ -4,16 +4,16 @@ First, you will need an Azure Key Vault.
 
 Next, you will need to create a `codeSigning` certificate and upload it to AKV.
 
-You can follow this document [Store the signing certificate in AKV](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-tutorial-sign-build-push#store-the-signing-certificate-in-akv) (althought referenced document was not for notary, this solution does not make use of Notary).
+You can follow this document [Store the signing certificate in AKV](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-tutorial-sign-build-push#store-the-signing-certificate-in-akv) (althought the original purpuse of the referenced document was for using notary, the storing cert in AKV part is the same.)
 
 ## **Create a self-signed certificate (Azure CLI)**
 
 ```
 # Name of the existing Azure Key Vault used to store the signing keys
-AKV_NAME=csakv001
+AKV_NAME=<Azure Key Vault name>
 # New desired key name used to sign and verify
-KEY_NAME=codesigning-gtp-ey
-CERT_SUBJECT="CN=codesigning.gtp.ey.com,O=Notary,L=Nashville,ST=TN,C=US"
+KEY_NAME=<certificate name>
+CERT_SUBJECT="<cert subject string>",
 CERT_PATH=./${KEY_NAME}.pem
 ```
 
@@ -75,8 +75,8 @@ Our GitHub Actions will need a login to access AKV for code signing certificate.
 # Name of the existing Azure Key Vault used to store the signing keys
 AKV_NAME=csakv001
 # New desired key name used to sign and verify
-KEY_NAME=codesigning-gtp-ey
-CERT_SUBJECT="CN=codesigning.gtp.ey.com,O=Notary,L=Nashville,ST=TN,C=US"
+KEY_NAME=<cert name>
+CERT_SUBJECT="<cert subject string>"
 CERT_PATH=./${KEY_NAME}.pem
 SUBSCRIPTION_ID=<az subscription id>
 RESOURCE_GROUP=<az resouce group>
