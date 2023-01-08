@@ -1,0 +1,114 @@
+name: Publish
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  certificate:
+    name: Retrieve Certificate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup AZ CLI 
+        run:   |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+        shell: bash
+      - name: Azure Login
+        uses: Azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: AKV Cert Download
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            az keyvault secret download --file ./signcode.pfx --encoding base64 --name codesigning-gtp-ey --version e433457e4a0e42049a4d3e23acf57f62 --vault-name csakv001
+      - name: Upload PFX file
+        uses: actions/upload-artifact@v3
+        with:
+          name: signcodecert
+          path: signcode.pfx
+
+  release:
+    name: Release
+    needs: certificate
+    strategy:
+      matrix:
+        kind: ['linux', 'windows']
+        include:
+          - kind: linux
+            os: ubuntu-latest
+            target: linux-x64
+          - kind: windows
+            os: windows-latest
+            target: win-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0.x' 
+          dotnet-quality: 'preview'
+      - name:  Install az cli osslsigncode
+        run:   |
+         if [ "$RUNNER_OS" == "Linux" ]; then
+              sudo apt-get update && sudo apt-get install -y osslsigncode
+              curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+         fi
+        shell: bash
+      - name: Build
+        shell: bash
+        run: |
+          tag=$(git describe --tags --abbrev=0)
+          release_name="HelloWorld-$tag-${{ matrix.target }}"
+
+          # Build everything
+          dotnet publish -f net6.0 --no-self-contained --runtime "${{ matrix.target }}" -c Release -o "$release_name"
+      - name: Download Certificate
+        uses: actions/download-artifact@v3
+        with:
+          name: signcodecert
+      - name: Sign PowerShell scripts
+        env:
+          CERTPASS: ${{secrets.CERTPASS}}
+          SIGNCERT: ${{secrets.SIGNCERT}}
+        shell: pwsh
+        if: matrix.os == 'windows-latest'
+        run: |
+            # Create buffer from the BASE64 string of the PFX stored in the secret
+            $buffer = [System.Convert]::FromBase64String($env:SIGNCERT)
+            # Create new certificate object from the buffer and the certificate pass
+            #$certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::New($buffer, '')
+            $certificate = Get-PfxCertificate -FilePath signcode.pfx
+            Get-ChildItem ./ -File -Recurse -Include HelloWorld.dll, HelloWorld.exe | Set-AuthenticodeSignature -HashAlgorithm SHA256 -Certificate $certificate -TimestampServer http://timestamp.digicert.com        
+      - name: osslsigncode sign
+        shell: bash
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          tag=$(git describe --tags --abbrev=0)
+          release_name="HelloWorld-$tag-${{ matrix.target }}"
+          find "$release_name" -type f -name HelloWorld.dll -exec osslsigncode sign -h sha256 -n codesigning-gtp-ey -pkcs12 signcode.pfx -t http://timestamp.digicert.com -in {} -out {}.signed \; -exec mv -f {}.signed {} \;
+
+      - name: Package
+        shell: bash
+        run: |
+          tag=$(git describe --tags --abbrev=0)
+          release_name="HelloWorld-$tag-${{ matrix.target }}"
+          # Pack files
+          if [ "${{ matrix.target }}" == "win-x64" ]; then
+            # Pack to zip for Windows
+            7z a -tzip "${release_name}.zip" "./${release_name}/*"
+          else
+          tar czvf "${release_name}.tar.gz" "$release_name"
+          fi
+
+          # Delete output directory
+          rm -r "$release_name"
+
+      - name: Publish
+        uses: softprops/action-gh-release@v1
+        with:
+          files: "HelloWorld*"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
