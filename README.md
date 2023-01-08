@@ -116,6 +116,6 @@ Some fields are repeated as I am not sure which fields are used by the GitHub Ac
 
 There is nothing to look at in the C# source code.
 
-What's interesting should be in [the GitHub Actions workflow file](https://github.com/dliulabs/CodeSigning/blob/main/.github/workflows/ci.yaml).
+Whatever you may be interested should be in [the GitHub Actions workflow file](https://github.com/dliulabs/CodeSigning/blob/main/.github/workflows/ci.yaml).
 
 If you download the release packages, you should find those HelloWorld.dll & HelloWorld.exe have been signed.
